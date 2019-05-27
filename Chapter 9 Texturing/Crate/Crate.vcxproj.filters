@@ -69,4 +69,7 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\..\Textures\WoodCrate01.dds" />
+  </ItemGroup>
 </Project>

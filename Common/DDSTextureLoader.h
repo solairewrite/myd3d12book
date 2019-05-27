@@ -85,9 +85,9 @@ namespace DirectX
 
 	HRESULT CreateDDSTextureFromFile12(_In_ ID3D12Device* device,
 		                               _In_ ID3D12GraphicsCommandList* cmdList,
-		                               _In_z_ const wchar_t* szFileName,
-		                               _Out_ Microsoft::WRL::ComPtr<ID3D12Resource>& texture,
-		                               _Out_ Microsoft::WRL::ComPtr<ID3D12Resource>& textureUploadHeap,
+		                               _In_z_ const wchar_t* szFileName, // 欲加载的图像文件名
+		                               _Out_ Microsoft::WRL::ComPtr<ID3D12Resource>& texture, // 返回载有图像数据的纹理资源
+		                               _Out_ Microsoft::WRL::ComPtr<ID3D12Resource>& textureUploadHeap, // 返回的纹理资源
 		                               _In_ size_t maxsize = 0,
 		                               _Out_opt_ DDS_ALPHA_MODE* alphaMode = nullptr
 		                               );

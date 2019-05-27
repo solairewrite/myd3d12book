@@ -170,6 +170,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 LitWavesApp::LitWavesApp(HINSTANCE hInstance)
     : D3DApp(hInstance)
 {
+
 }
 
 LitWavesApp::~LitWavesApp()
@@ -348,6 +349,7 @@ void LitWavesApp::OnMouseMove(WPARAM btnState, int x, int y)
     mLastMousePos.x = x;
     mLastMousePos.y = y;
 }
+
 
 void LitWavesApp::OnKeyboardInput(const GameTimer& gt)
 {
