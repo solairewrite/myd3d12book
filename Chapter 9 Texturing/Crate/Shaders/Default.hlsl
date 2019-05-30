@@ -20,8 +20,8 @@
 // Include structures and functions for lighting.
 #include "LightingUtil.hlsl"
 
-Texture2D    gDiffuseMap : register(t0);
-SamplerState gsamLinear  : register(s0);
+Texture2D    gDiffuseMap : register(t0); // ÎÆÀí
+SamplerState gsamLinear  : register(s0); // ²ÉÑùÆ÷
 
 
 // Constant data that varies per frame.

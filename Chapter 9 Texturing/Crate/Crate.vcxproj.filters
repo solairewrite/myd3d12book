@@ -72,4 +72,8 @@
   <ItemGroup>
     <Image Include="..\..\Textures\WoodCrate01.dds" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\Default.hlsl" />
+    <None Include="Shaders\LightingUtil.hlsl" />
+  </ItemGroup>
 </Project>
