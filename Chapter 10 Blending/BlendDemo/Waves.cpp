@@ -53,6 +53,7 @@ Waves::Waves(int m, int n, float dx, float dt, float speed, float damping)
 
 Waves::~Waves()
 {
+
 }
 
 int Waves::RowCount()const

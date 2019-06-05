@@ -174,6 +174,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 BlendApp::BlendApp(HINSTANCE hInstance)
     : D3DApp(hInstance)
 {
+
 }
 
 BlendApp::~BlendApp()
