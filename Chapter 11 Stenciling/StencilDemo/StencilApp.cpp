@@ -285,27 +285,29 @@ void StencilApp::Draw(const GameTimer& gt)
 
 	UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 
-	// Draw opaque items--floors, walls, skull.
+	// Draw opaque items--floors, walls, skull. 绘制不透明的物体:地板,墙壁,骷髅头
 	auto passCB = mCurrFrameResource->PassCB->Resource();
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
     DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
 	
-	// Mark the visible mirror pixels in the stencil buffer with the value 1
+	// Mark the visible mirror pixels in the stencil buffer with the value 1 将模板缓冲区中可见的镜面像素标记位1
 	mCommandList->OMSetStencilRef(1);
 	mCommandList->SetPipelineState(mPSOs["markStencilMirrors"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Mirrors]);
 
 	// Draw the reflection into the mirror only (only for pixels where the stencil buffer is 1).
 	// Note that we must supply a different per-pass constant buffer--one with the lights reflected.
+	// 只绘制镜子范围内的镜像(即仅绘制模板缓冲区中标记为1的像素)
+	// 使用两个渲染过程常量缓冲区,一个储存物体镜像,另一个保存光照镜像
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress() + 1 * passCBByteSize);
 	mCommandList->SetPipelineState(mPSOs["drawStencilReflections"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Reflected]);
 
-	// Restore main pass constants and stencil ref.
+	// Restore main pass constants and stencil ref. 恢复主渲染过程常量数据以及模板参考值
 	mCommandList->SetGraphicsRootConstantBufferView(2, passCB->GetGPUVirtualAddress());
 	mCommandList->OMSetStencilRef(0);
 
-	// Draw mirror with transparency so reflection blends through.
+	// Draw mirror with transparency so reflection blends through. 绘制透明的镜面,使镜像可以与之混合
 	mCommandList->SetPipelineState(mPSOs["transparent"].Get());
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Transparent]);
 
@@ -415,10 +417,11 @@ void StencilApp::OnKeyboardInput(const GameTimer& gt)
 	XMMATRIX R = XMMatrixReflect(mirrorPlane);
 	XMStoreFloat4x4(&mReflectedSkullRitem->World, skullWorld * R);
 
-	// Update shadow world matrix.
+	// Update shadow world matrix. 更新阴影世界矩阵
 	XMVECTOR shadowPlane = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f); // xz plane
 	XMVECTOR toMainLight = -XMLoadFloat3(&mMainPassCB.Lights[0].Direction);
 	XMMATRIX S = XMMatrixShadow(shadowPlane, toMainLight);
+	// 防止发生深度冲突,阴影略高于地面
 	XMMATRIX shadowOffsetY = XMMatrixTranslation(0.0f, 0.001f, 0.0f);
 	XMStoreFloat4x4(&mShadowedSkullRitem->World, skullWorld * S * shadowOffsetY);
 
@@ -549,7 +552,7 @@ void StencilApp::UpdateReflectedPassCB(const GameTimer& gt)
 		XMStoreFloat3(&mReflectedPassCB.Lights[i].Direction, reflectedLightDir);
 	}
 
-	// Reflected pass stored in index 1
+	// Reflected pass stored in index 1 将光照镜像的渲染过程常量数据存于渲染过程常量缓冲区索引1的位置
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(1, mReflectedPassCB);
 }
@@ -950,26 +953,26 @@ void StencilApp::BuildPSOs()
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&transparentPsoDesc, IID_PPV_ARGS(&mPSOs["transparent"])));
 
 	//
-	// PSO for marking stencil mirrors.
+	// PSO for marking stencil mirrors. 模板缓冲区中镜面部分的PSO
 	//
-
+	// 禁止对渲染目标的写操作
 	CD3DX12_BLEND_DESC mirrorBlendState(D3D12_DEFAULT);
-	mirrorBlendState.RenderTarget[0].RenderTargetWriteMask = 0;
+	mirrorBlendState.RenderTarget[0].RenderTargetWriteMask = 0; // 仅将镜面渲染到模板缓冲区中,禁止其他颜色数据写入到后台缓冲区
 
 	D3D12_DEPTH_STENCIL_DESC mirrorDSS;
 	mirrorDSS.DepthEnable = true;
-	mirrorDSS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	mirrorDSS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO; // 禁止向深度缓冲区的写操作 
 	mirrorDSS.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 	mirrorDSS.StencilEnable = true;
-	mirrorDSS.StencilReadMask = 0xff;
-	mirrorDSS.StencilWriteMask = 0xff;
-	
+	mirrorDSS.StencilReadMask = 0xff; // 设置屏蔽的位
+	mirrorDSS.StencilWriteMask = 0xff; // 设置屏蔽写入的位. eg:0x0f-防止前4位数据被改写
+	// 镜面可见部分的对应像素为1,其他像素皆为0
 	mirrorDSS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
-	mirrorDSS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
-	mirrorDSS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
+	mirrorDSS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP; // 貌似原来是0
+	mirrorDSS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE; // 将模板缓冲区中的元素替换为StencilRef(1)
 	mirrorDSS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS;
 
-	// We are not rendering backfacing polygons, so these settings do not matter.
+	// We are not rendering backfacing polygons, so these settings do not matter. 不渲染背面,所以不关心这些参数
 	mirrorDSS.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
 	mirrorDSS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
 	mirrorDSS.BackFace.StencilPassOp = D3D12_STENCIL_OP_REPLACE;
@@ -981,7 +984,7 @@ void StencilApp::BuildPSOs()
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&markMirrorsPsoDesc, IID_PPV_ARGS(&mPSOs["markStencilMirrors"])));
 
 	//
-	// PSO for stencil reflections.
+	// PSO for stencil reflections. 渲染模板缓冲区中反射镜像的PSO
 	//
 
 	D3D12_DEPTH_STENCIL_DESC reflectionsDSS;
@@ -995,9 +998,9 @@ void StencilApp::BuildPSOs()
 	reflectionsDSS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
 	reflectionsDSS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
 	reflectionsDSS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
-	reflectionsDSS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
+	reflectionsDSS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL; // 仅当模板缓冲区中的值为1时,才能通过模板测试
 
-	// We are not rendering backfacing polygons, so these settings do not matter.
+	// We are not rendering backfacing polygons, so these settings do not matter. 不渲染背面,所以不关心这些参数
 	reflectionsDSS.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
 	reflectionsDSS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
 	reflectionsDSS.BackFace.StencilPassOp = D3D12_STENCIL_OP_KEEP;
@@ -1013,7 +1016,8 @@ void StencilApp::BuildPSOs()
 	// PSO for shadow objects
 	//
 
-	// We are going to draw shadows with transparency, so base it off the transparency description.
+	// We are going to draw shadows with transparency, so base it off the transparency description. 
+	// 以下列深度/模板状态来防止双重混合的发生
 	D3D12_DEPTH_STENCIL_DESC shadowDSS;
 	shadowDSS.DepthEnable = true;
 	shadowDSS.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
@@ -1024,10 +1028,14 @@ void StencilApp::BuildPSOs()
 
 	shadowDSS.FrontFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
 	shadowDSS.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
-	shadowDSS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
+	// 模板测试仅接受模板缓冲区中元素为0的像素.如果通过模板测试,则将相应模板缓冲区值增为1
+	// 第一次渲染阴影像素时,由于模板缓冲区元素为0,因而模板测试成功
+	// 渲染该像素的同时,将对应的模板缓冲区元素增加为1
+	// 如果覆写已被渲染过的区域,模板测试失败
+	shadowDSS.FrontFace.StencilPassOp = D3D12_STENCIL_OP_INCR; 
 	shadowDSS.FrontFace.StencilFunc = D3D12_COMPARISON_FUNC_EQUAL;
 
-	// We are not rendering backfacing polygons, so these settings do not matter.
+	// We are not rendering backfacing polygons, so these settings do not matter. 不渲染背面,所以不关心这些参数
 	shadowDSS.BackFace.StencilFailOp = D3D12_STENCIL_OP_KEEP;
 	shadowDSS.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
 	shadowDSS.BackFace.StencilPassOp = D3D12_STENCIL_OP_INCR;
