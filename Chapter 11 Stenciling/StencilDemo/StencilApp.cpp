@@ -175,6 +175,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
 StencilApp::StencilApp(HINSTANCE hInstance)
     : D3DApp(hInstance)
 {
+
 }
 
 StencilApp::~StencilApp()
