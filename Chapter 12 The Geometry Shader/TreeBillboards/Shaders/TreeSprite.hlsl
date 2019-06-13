@@ -18,7 +18,7 @@
 // Include structures and functions for lighting.
 #include "LightingUtil.hlsl"
 
-Texture2DArray gTreeMapArray : register(t0);
+Texture2DArray gTreeMapArray : register(t0); // 纹理数组
 
 
 SamplerState gsamPointWrap        : register(s0);
@@ -108,8 +108,12 @@ VertexOut VS(VertexIn vin)
  
  // We expand each point into a quad (4 vertices), so the maximum number of vertices
  // we output per geometry shader invocation is 4.
+// 由于我们要将每个点都扩展为一个四边形(4个顶点),因此每次调用几何着色器最多输出4个顶点
 [maxvertexcount(4)]
 void GS(point VertexOut gin[1], 
+		// 指定 SV_PrimitiveID 语义,输入装配器阶段会自动为每个图元生成图元ID
+		// 几何着色器将图元ID写入到输出顶点之中,以此将它们传递到像素着色器阶段
+		// 像素着色器把图元ID用作纹理数组的索引
         uint primID : SV_PrimitiveID, 
         inout TriangleStream<GeoOut> triStream)
 {	
@@ -117,7 +121,8 @@ void GS(point VertexOut gin[1],
 	// Compute the local coordinate system of the sprite relative to the world
 	// space such that the billboard is aligned with the y-axis and faces the eye.
 	//
-
+	// 计算精灵(sprite,一种不经渲染流水线而直接绘制到渲染目标的2D位图)的局部坐标系与世界空间的相对关系
+	// 以使公告牌与y轴对齐且面向观察者
 	float3 up = float3(0.0f, 1.0f, 0.0f);
 	float3 look = gEyePosW - gin[0].CenterW;
 	look.y = 0.0f; // y-axis aligned, so project to xz-plane
@@ -126,7 +131,7 @@ void GS(point VertexOut gin[1],
 
 	//
 	// Compute triangle strip vertices (quad) in world space.
-	//
+	// 将四边形的顶点变换到世界空间,并将它们以三角形带的形式输出
 	float halfWidth  = 0.5f*gin[0].SizeW.x;
 	float halfHeight = 0.5f*gin[0].SizeW.y;
 	
@@ -165,6 +170,7 @@ void GS(point VertexOut gin[1],
 
 float4 PS(GeoOut pin) : SV_Target
 {
+	// 对纹理数组进行采样,(u, v, 纹理数组index)
 	float3 uvw = float3(pin.TexC, pin.PrimID%3);
     float4 diffuseAlbedo = gTreeMapArray.Sample(gsamAnisotropicWrap, uvw) * gDiffuseAlbedo;
 	
@@ -172,10 +178,12 @@ float4 PS(GeoOut pin) : SV_Target
 	// Discard pixel if texture alpha < 0.1.  We do this test as soon 
 	// as possible in the shader so that we can potentially exit the
 	// shader early, thereby skipping the rest of the shader code.
+	// 忽略纹理 alpha < 0.1 的像素.这个测试要尽早完成,以便提前退出着色器
 	clip(diffuseAlbedo.a - 0.1f);
 #endif
 
     // Interpolating normal can unnormalize it, so renormalize it.
+	// 对法线的差值可能导致其非规范化,因此需再次对它进行规范化处理
     pin.NormalW = normalize(pin.NormalW);
 
     // Vector from point being lit to eye. 
@@ -183,7 +191,7 @@ float4 PS(GeoOut pin) : SV_Target
 	float distToEye = length(toEyeW);
 	toEyeW /= distToEye; // normalize
 
-    // Light terms.
+    // Light terms. 光照项
     float4 ambient = gAmbientLight*diffuseAlbedo;
 
     const float shininess = 1.0f - gRoughness;
@@ -200,9 +208,8 @@ float4 PS(GeoOut pin) : SV_Target
 #endif
 
     // Common convention to take alpha from diffuse albedo.
+	// 从漫射反照率中获取alpha的常用手段
     litColor.a = diffuseAlbedo.a;
 
     return litColor;
 }
-
-
