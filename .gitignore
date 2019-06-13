@@ -51,6 +51,7 @@ Temporary Items
 # VS产生的文件夹
 Debug
 x64
+Release
 
 # Prerequisites
 *.d
