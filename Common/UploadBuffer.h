@@ -6,59 +6,69 @@ template<typename T>
 class UploadBuffer
 {
 public:
-    UploadBuffer(ID3D12Device* device, UINT elementCount, bool isConstantBuffer) : 
-        mIsConstantBuffer(isConstantBuffer)
-    {
-        mElementByteSize = sizeof(T);
+	UploadBuffer(ID3D12Device* device, UINT elementCount, bool isConstantBuffer) :
+		mIsConstantBuffer(isConstantBuffer)
+	{
+		mElementByteSize = sizeof(T);
 
-        // Constant buffer elements need to be multiples of 256 bytes.
-        // This is because the hardware can only view constant data 
-        // at m*256 byte offsets and of n*256 byte lengths. 
-        // typedef struct D3D12_CONSTANT_BUFFER_VIEW_DESC {
-        // UINT64 OffsetInBytes; // multiple of 256
-        // UINT   SizeInBytes;   // multiple of 256
-        // } D3D12_CONSTANT_BUFFER_VIEW_DESC;
-        if(isConstantBuffer)
-            mElementByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(T));
+		// Constant buffer elements need to be multiples of 256 bytes.
+		// This is because the hardware can only view constant data 
+		// at m*256 byte offsets and of n*256 byte lengths. 
+		// typedef struct D3D12_CONSTANT_BUFFER_VIEW_DESC {
+		// UINT64 OffsetInBytes; // multiple of 256
+		// UINT   SizeInBytes;   // multiple of 256
+		// } D3D12_CONSTANT_BUFFER_VIEW_DESC;
+		// 常量缓冲区对硬件有特别的要求,大小必为硬件最小分配空间(256B)的整数倍
+		if (isConstantBuffer)
+			mElementByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(T));
 
-        ThrowIfFailed(device->CreateCommittedResource(
-            &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-            D3D12_HEAP_FLAG_NONE,
-            &CD3DX12_RESOURCE_DESC::Buffer(mElementByteSize*elementCount),
+		ThrowIfFailed(device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), // 常量缓冲区通常由CPU每帧更新一次,在上传堆
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(mElementByteSize*elementCount),
 			D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&mUploadBuffer)));
+			nullptr,
+			IID_PPV_ARGS(&mUploadBuffer)));
 
-        ThrowIfFailed(mUploadBuffer->Map(0, nullptr, reinterpret_cast<void**>(&mMappedData)));
+		// 获得指向欲更新资源数据的指针
+		// para1: 子资源的索引,指定了欲映射的子资源.对于缓冲区来说,它自身就是唯一的子资源,设为0
+		// para2: 内存的映射范围, nullptr对整个资源进行映射
+		// para3: 待映射资源数据的目标内存块
+		ThrowIfFailed(mUploadBuffer->Map(0, nullptr, reinterpret_cast<void**>(&mMappedData)));
 
-        // We do not need to unmap until we are done with the resource.  However, we must not write to
-        // the resource while it is in use by the GPU (so we must use synchronization techniques).
-    }
+		// We do not need to unmap until we are done with the resource.  However, we must not write to
+		// the resource while it is in use by the GPU (so we must use synchronization techniques).
+	}
 
-    UploadBuffer(const UploadBuffer& rhs) = delete;
-    UploadBuffer& operator=(const UploadBuffer& rhs) = delete;
-    ~UploadBuffer()
-    {
-        if(mUploadBuffer != nullptr)
-            mUploadBuffer->Unmap(0, nullptr);
+	UploadBuffer(const UploadBuffer& rhs) = delete;
+	UploadBuffer& operator=(const UploadBuffer& rhs) = delete;
+	~UploadBuffer()
+	{
+		// 当常量缓冲区更新完成后,应该在释放映射内存之前对其进行取消映射操作
+		// para1: 子资源索引,指定了将被取消映射的子资源,缓冲区设为0
+		// para2: 取消映射的内存范围, nullptr取消整个资源的映射
+		if (mUploadBuffer != nullptr)
+			mUploadBuffer->Unmap(0, nullptr);
 
-        mMappedData = nullptr;
-    }
+		mMappedData = nullptr;
+	}
 
-    ID3D12Resource* Resource()const
-    {
-        return mUploadBuffer.Get();
-    }
+	ID3D12Resource* Resource()const
+	{
+		return mUploadBuffer.Get();
+	}
 
-    void CopyData(int elementIndex, const T& data)
-    {
-        memcpy(&mMappedData[elementIndex*mElementByteSize], &data, sizeof(T));
-    }
+	// 通过CPU修改上传缓冲区中数据(eg, 观察矩阵变化)
+	void CopyData(int elementIndex, const T& data)
+	{
+		// 将数据从系统内存复制到常量缓冲区
+		memcpy(&mMappedData[elementIndex*mElementByteSize], &data, sizeof(T));
+	}
 
 private:
-    Microsoft::WRL::ComPtr<ID3D12Resource> mUploadBuffer;
-    BYTE* mMappedData = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> mUploadBuffer;
+	BYTE* mMappedData = nullptr;
 
-    UINT mElementByteSize = 0;
-    bool mIsConstantBuffer = false;
+	UINT mElementByteSize = 0;
+	bool mIsConstantBuffer = false;
 };
