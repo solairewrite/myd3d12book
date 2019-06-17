@@ -84,19 +84,19 @@ protected:
 	bool      mResizing = false;   // are the resize bars being dragged?
     bool      mFullscreenState = false;// fullscreen enabled
 
-	// Set true to use 4X MSAA (ß4.1.8).  The default is false.
+	// Set true to use 4X MSAA (?.1.8).  The default is false.
     bool      m4xMsaaState = false;    // 4X MSAA enabled
     UINT      m4xMsaaQuality = 0;      // quality level of 4X MSAA
 
-	// Used to keep track of the ìdelta-timeî and game time (ß4.4).
+	// Used to keep track of the ìdelta-time?and game time (?.4).
 	GameTimer mTimer;
 	
     Microsoft::WRL::ComPtr<IDXGIFactory4> mdxgiFactory;
     Microsoft::WRL::ComPtr<IDXGISwapChain> mSwapChain;
     Microsoft::WRL::ComPtr<ID3D12Device> md3dDevice;
 
-    Microsoft::WRL::ComPtr<ID3D12Fence> mFence;
-    UINT64 mCurrentFence = 0;
+    Microsoft::WRL::ComPtr<ID3D12Fence> mFence; // Œß¿∏ mFence->GetCompletedValue ªÒ»°Œß¿∏÷µ
+    UINT64 mCurrentFence = 0; // ”√”⁄…Ë÷√Œß¿∏÷µµƒ int
 	
     Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue;
     Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mDirectCmdListAlloc;

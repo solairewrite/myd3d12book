@@ -1,7 +1,7 @@
 
 #include <windows.h> // for XMVerifyCPUSupport
 #include <DirectXMath.h>
-#include <DirectXPackedVector.h>
+#include <DirectXPackedVector.h> // 相关的数据类型
 #include <iostream>
 using namespace std;
 using namespace DirectX;

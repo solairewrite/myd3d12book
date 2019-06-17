@@ -384,7 +384,7 @@ GeometryGenerator::MeshData GeometryGenerator::CreateCylinder(float bottomRadius
     MeshData meshData;
 
 	//
-	// Build Stacks.
+	// Build Stacks. ¹¹½¨¶Ñµþ²ã
 	// 
 
 	float stackHeight = height / stackCount;

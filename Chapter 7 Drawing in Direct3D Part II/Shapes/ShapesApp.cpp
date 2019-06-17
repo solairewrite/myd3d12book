@@ -18,6 +18,7 @@ const int gNumFrameResources = 3;
 
 // Lightweight structure stores parameters to draw a shape.  This will
 // vary from app-to-app.
+// 渲染项: 单次绘制调用过程中,需要向渲染流水线提交的数据集
 struct RenderItem
 {
 	RenderItem() = default;
@@ -34,8 +35,10 @@ struct RenderItem
 	int NumFramesDirty = gNumFrameResources;
 
 	// Index into GPU constant buffer corresponding to the ObjectCB for this render item.
+	// 该索引指向的,GPU常量缓存区对应的,当前渲染项中的物体常量缓冲区
 	UINT ObjCBIndex = -1;
 
+	// 此渲染项参与绘制的几何体,绘制一个几何体可能会用到多个渲染项
 	MeshGeometry* Geo = nullptr;
 
     // Primitive topology.
@@ -106,7 +109,7 @@ private:
 
     PassConstants mMainPassCB;
 
-    UINT mPassCbvOffset = 0;
+    UINT mPassCbvOffset = 0; // 渲染过程CBV起始偏移量(最后3个),前面是3n个物体
 
     bool mIsWireframe = false;
 
@@ -203,6 +206,8 @@ void ShapesApp::Update(const GameTimer& gt)
 
     // Has the GPU finished processing the commands of the current frame resource?
     // If not, wait until the GPU has completed commands up to this fence point.
+	// 最开始,三个帧资源 Fence 都为 0,所致直接向队列中加入了3个帧资源的绘制命令
+	// 之后的循环,对于这个帧资源来说,判断之前传到GPU命令队列中的任务有没有完成,如果没完成,就让CPU等待
     if(mCurrFrameResource->Fence != 0 && mFence->GetCompletedValue() < mCurrFrameResource->Fence)
     {
         HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
@@ -256,7 +261,7 @@ void ShapesApp::Draw(const GameTimer& gt)
     int passCbvIndex = mPassCbvOffset + mCurrFrameResourceIndex;
     auto passCbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
     passCbvHandle.Offset(passCbvIndex, mCbvSrvUavDescriptorSize);
-    mCommandList->SetGraphicsRootDescriptorTable(1, passCbvHandle);
+    mCommandList->SetGraphicsRootDescriptorTable(1, passCbvHandle); // cbuffer cbPass : register(b1)
 
     DrawRenderItems(mCommandList.Get(), mOpaqueRitems);
 
@@ -281,6 +286,8 @@ void ShapesApp::Draw(const GameTimer& gt)
     // Add an instruction to the command queue to set a new fence point. 
     // Because we are on the GPU timeline, the new fence point won't be 
     // set until the GPU finishes processing all the commands prior to this Signal().
+	// mFence 配合 mCurrentFence 不停的将 ++ 命令加入GPU命令队列中
+	// 它并没有跳跃,而是 0->1->2->3... 一个一个的增加
     mCommandQueue->Signal(mFence.Get(), mCurrentFence);
 }
 
@@ -409,6 +416,8 @@ void ShapesApp::BuildDescriptorHeaps()
 
     // Need a CBV descriptor for each object for each frame resource,
     // +1 for the perPass CBV for each frame resource.
+	// 为每个帧资源中的每一个物体都创建一个CBV描述符
+	// 为每个帧资源中的渲染过程CBV而+1
     UINT numDescriptors = (objCount+1) * gNumFrameResources;
 
     // Save an offset to the start of the pass CBVs.  These are the last 3 descriptors.
@@ -423,6 +432,7 @@ void ShapesApp::BuildDescriptorHeaps()
         IID_PPV_ARGS(&mCbvHeap)));
 }
 
+// 改的还是 cbvHeap,将物体的常量缓冲区地址和偏移后的句柄绑定
 void ShapesApp::BuildConstantBufferViews()
 {
     UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
@@ -430,6 +440,7 @@ void ShapesApp::BuildConstantBufferViews()
     UINT objCount = (UINT)mOpaqueRitems.size();
 
     // Need a CBV descriptor for each object for each frame resource.
+	// 每个帧资源中的每一个物体都需要一个对应的CBV描述符
     for(int frameIndex = 0; frameIndex < gNumFrameResources; ++frameIndex)
     {
         auto objectCB = mFrameResources[frameIndex]->ObjectCB->Resource();
@@ -438,9 +449,11 @@ void ShapesApp::BuildConstantBufferViews()
             D3D12_GPU_VIRTUAL_ADDRESS cbAddress = objectCB->GetGPUVirtualAddress();
 
             // Offset to the ith object constant buffer in the buffer.
+			// 偏移到缓冲区中第i个物体的常量缓冲区
             cbAddress += i*objCBByteSize;
 
             // Offset to the object cbv in the descriptor heap.
+			// 偏移到该物体在描述符堆中的CBV
             int heapIndex = frameIndex*objCount + i;
             auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mCbvHeap->GetCPUDescriptorHandleForHeapStart());
             handle.Offset(heapIndex, mCbvSrvUavDescriptorSize);
@@ -456,13 +469,15 @@ void ShapesApp::BuildConstantBufferViews()
     UINT passCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(PassConstants));
 
     // Last three descriptors are the pass CBVs for each frame resource.
+	// 最后3个描述符依次是每个帧资源的渲染过程CBV
     for(int frameIndex = 0; frameIndex < gNumFrameResources; ++frameIndex)
     {
         auto passCB = mFrameResources[frameIndex]->PassCB->Resource();
         D3D12_GPU_VIRTUAL_ADDRESS cbAddress = passCB->GetGPUVirtualAddress();
 
         // Offset to the pass cbv in the descriptor heap.
-        int heapIndex = mPassCbvOffset + frameIndex;
+		// 偏移到描述符堆中对应的渲染过程CBV
+        int heapIndex = mPassCbvOffset + frameIndex; // mPassCbvOffset = objCount * gNumFrameResources
         auto handle = CD3DX12_CPU_DESCRIPTOR_HANDLE(mCbvHeap->GetCPUDescriptorHandleForHeapStart());
         handle.Offset(heapIndex, mCbvSrvUavDescriptorSize);
 
@@ -476,6 +491,10 @@ void ShapesApp::BuildConstantBufferViews()
 
 void ShapesApp::BuildRootSignature()
 {
+	// 两个描述符表,这两个CBV有着不同的更新频率
+	// 渲染过程CBV在每个渲染过程中设置一次
+	// 物体CBV针对每一个渲染项进行配置
+
     CD3DX12_DESCRIPTOR_RANGE cbvTable0;
     cbvTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
 
@@ -535,15 +554,18 @@ void ShapesApp::BuildShapeGeometry()
 	//
 	// We are concatenating all the geometry into one big vertex/index buffer.  So
 	// define the regions in the buffer each submesh covers.
-	//
+	// 将所有的几何体数据都合并到一对大的顶点/索引缓冲区中
+	// 以此来定义每个子网格数据在缓冲区中所占的范围
 
 	// Cache the vertex offsets to each object in the concatenated vertex buffer.
+	// 对合并顶点缓冲区中每个物体的顶点偏移量进行缓存
 	UINT boxVertexOffset = 0;
 	UINT gridVertexOffset = (UINT)box.Vertices.size();
 	UINT sphereVertexOffset = gridVertexOffset + (UINT)grid.Vertices.size();
 	UINT cylinderVertexOffset = sphereVertexOffset + (UINT)sphere.Vertices.size();
 
 	// Cache the starting index for each object in the concatenated index buffer.
+	// 对合并索引缓冲区中每个物体的起始索引进行缓存
 	UINT boxIndexOffset = 0;
 	UINT gridIndexOffset = (UINT)box.Indices32.size();
 	UINT sphereIndexOffset = gridIndexOffset + (UINT)grid.Indices32.size();
@@ -551,6 +573,7 @@ void ShapesApp::BuildShapeGeometry()
 
     // Define the SubmeshGeometry that cover different 
     // regions of the vertex/index buffers.
+	// 定义的多个SubmeshGeometry结构体包含了顶点/索引缓冲区内不同几何体的子网格数据
 
 	SubmeshGeometry boxSubmesh;
 	boxSubmesh.IndexCount = (UINT)box.Indices32.size();
@@ -575,7 +598,7 @@ void ShapesApp::BuildShapeGeometry()
 	//
 	// Extract the vertex elements we are interested in and pack the
 	// vertices of all the meshes into one vertex buffer.
-	//
+	// 提取所需的顶点元素,再将所有网格的顶点装进一个顶点缓冲区
 
 	auto totalVertexCount =
 		box.Vertices.size() +
@@ -699,6 +722,7 @@ void ShapesApp::BuildFrameResources()
     }
 }
 
+// 渲染项: 向流水线提交的数据集
 void ShapesApp::BuildRenderItems()
 {
 	auto boxRitem = std::make_unique<RenderItem>();
@@ -794,11 +818,12 @@ void ShapesApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::v
         cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
 
         // Offset to the CBV in the descriptor heap for this object and for this frame resource.
+		// 为了绘制当前的帧资源和当前物体,偏移到描述符堆中对应的CBV处
         UINT cbvIndex = mCurrFrameResourceIndex*(UINT)mOpaqueRitems.size() + ri->ObjCBIndex;
         auto cbvHandle = CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvHeap->GetGPUDescriptorHandleForHeapStart());
         cbvHandle.Offset(cbvIndex, mCbvSrvUavDescriptorSize);
 
-        cmdList->SetGraphicsRootDescriptorTable(0, cbvHandle);
+        cmdList->SetGraphicsRootDescriptorTable(0, cbvHandle); // cbuffer cbPerObject : register(b0)
 
         cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
     }
