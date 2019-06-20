@@ -448,6 +448,7 @@ void LandAndWavesApp::UpdateWaves(const GameTimer& gt)
 	}
 
 	// Set the dynamic VB of the wave renderitem to the current frame VB.
+	// 将波浪渲染的动态顶点缓冲区设置到当前帧的顶点缓冲区
 	mWavesRitem->Geo->VertexBufferGPU = currWavesVB->Resource();
 }
 

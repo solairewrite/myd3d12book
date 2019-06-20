@@ -434,7 +434,7 @@ void ShapesApp::BuildDescriptorHeaps()
 
 // 改的还是 cbvHeap,将物体的常量缓冲区地址和偏移后的句柄绑定
 void ShapesApp::BuildConstantBufferViews()
-{
+{  
     UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
 
     UINT objCount = (UINT)mOpaqueRitems.size();
