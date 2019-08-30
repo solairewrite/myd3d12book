@@ -1,10 +1,3 @@
-//***************************************************************************************
-// Default.hlsl by Frank Luna (C) 2015 All Rights Reserved.
-//
-// Default shader, currently supports lighting.
-//***************************************************************************************
-
-// Defaults for number of lights.
 #ifndef NUM_DIR_LIGHTS
     #define NUM_DIR_LIGHTS 3
 #endif
@@ -21,7 +14,6 @@
 #include "LightingUtil.hlsl"
 
 Texture2D    gDiffuseMap : register(t0);
-
 
 SamplerState gsamPointWrap        : register(s0);
 SamplerState gsamPointClamp       : register(s1);
@@ -152,5 +144,3 @@ float4 PS(VertexOut pin) : SV_Target
 
     return litColor;
 }
-
-

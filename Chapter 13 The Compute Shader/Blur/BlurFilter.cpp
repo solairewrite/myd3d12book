@@ -1,7 +1,3 @@
-//***************************************************************************************
-// BlurFilter.cpp by Frank Luna (C) 2011 All Rights Reserved.
-//***************************************************************************************
-
 #include "BlurFilter.h"
  
 BlurFilter::BlurFilter(ID3D12Device* device, 
@@ -66,6 +62,7 @@ void BlurFilter::Execute(ID3D12GraphicsCommandList* cmdList,
 
 	cmdList->SetComputeRootSignature(rootSig);
 
+	// RootParameterIndex:0, cbuffer cbSettings : register(b0)
 	cmdList->SetComputeRoot32BitConstants(0, 1, &blurRadius, 0);
 	cmdList->SetComputeRoot32BitConstants(0, (UINT)weights.size(), weights.data(), 1);
 
@@ -92,7 +89,10 @@ void BlurFilter::Execute(ID3D12GraphicsCommandList* cmdList,
 
 		cmdList->SetPipelineState(horzBlurPSO);
 
+		// 纹理输入: 给输入纹理创建SRV(着色器资源视图),再作为参数传入根参数,就能将纹理绑定为着色器的输入资源
+		// RootParameterIndex:1, Texture2D gInput : register(t0)
 		cmdList->SetComputeRootDescriptorTable(1, mBlur0GpuSrv);
+		// RootParameterIndex:2, RWTexture2D<float4> gOutput : register(u0)
 		cmdList->SetComputeRootDescriptorTable(2, mBlur1GpuUav);
 
 		// How many groups do we need to dispatch to cover a row of pixels, where each
@@ -170,7 +170,7 @@ void BlurFilter::BuildDescriptors()
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	srvDesc.Texture2D.MipLevels = 1;
 
-	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {}; // 无序访问视图 UAV
 
 	uavDesc.Format = mFormat;
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
@@ -203,7 +203,7 @@ void BlurFilter::BuildResources()
 	texDesc.SampleDesc.Count = 1;
 	texDesc.SampleDesc.Quality = 0;
 	texDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	texDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS; // UAV
 
 	ThrowIfFailed(md3dDevice->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),

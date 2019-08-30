@@ -1,7 +1,3 @@
-//***************************************************************************************
-// BlurApp.cpp by Frank Luna (C) 2015 All Rights Reserved.
-//***************************************************************************************
-
 #include "../../Common/d3dApp.h"
 #include "../../Common/MathHelper.h"
 #include "../../Common/UploadBuffer.h"
@@ -628,16 +624,16 @@ void BlurApp::BuildRootSignature()
 void BlurApp::BuildPostProcessRootSignature()
 {
 	CD3DX12_DESCRIPTOR_RANGE srvTable;
-	srvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+	srvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // Texture2D gInput : register(t0);
 
 	CD3DX12_DESCRIPTOR_RANGE uavTable;
-	uavTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
+	uavTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0); // RWTexture2D<float4> gOutput : register(u0)
 
 	// Root parameter can be a table, root descriptor or root constants.
 	CD3DX12_ROOT_PARAMETER slotRootParameter[3];
 
 	// Perfomance TIP: Order from most frequent to least frequent.
-	slotRootParameter[0].InitAsConstants(12, 0);
+	slotRootParameter[0].InitAsConstants(12, 0); // cbuffer cbSettings : register(b0)
 	slotRootParameter[1].InitAsDescriptorTable(1, &srvTable);
 	slotRootParameter[2].InitAsDescriptorTable(1, &uavTable);
 
