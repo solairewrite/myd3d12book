@@ -1,3 +1,4 @@
+// 封装纹理A与纹理B的SRV,UAV和纹理资源; 开启计算着色器中实际模糊运算
 #include "BlurFilter.h"
  
 BlurFilter::BlurFilter(ID3D12Device* device, 
@@ -50,6 +51,7 @@ void BlurFilter::OnResize(UINT newWidth, UINT newHeight)
 	}
 }
  
+// 计算线程组数量,开启计算着色器模糊运算
 void BlurFilter::Execute(ID3D12GraphicsCommandList* cmdList, 
 	                     ID3D12RootSignature* rootSig,
 	                     ID3D12PipelineState* horzBlurPSO,
@@ -62,7 +64,8 @@ void BlurFilter::Execute(ID3D12GraphicsCommandList* cmdList,
 
 	cmdList->SetComputeRootSignature(rootSig);
 
-	// RootParameterIndex:0, cbuffer cbSettings : register(b0)
+	// para1: RootParameterIndex:0, cbuffer cbSettings : register(b0)
+	// para2: 32BitValues的数量, para3: data, para4: 在32BitValues内的偏移
 	cmdList->SetComputeRoot32BitConstants(0, 1, &blurRadius, 0);
 	cmdList->SetComputeRoot32BitConstants(0, (UINT)weights.size(), weights.data(), 1);
 
@@ -97,6 +100,7 @@ void BlurFilter::Execute(ID3D12GraphicsCommandList* cmdList,
 
 		// How many groups do we need to dispatch to cover a row of pixels, where each
 		// group covers 256 pixels (the 256 is defined in the ComputeShader).
+		// 若每个线程组能处理256个像素(256这个值是在计算着色器中定义的),那么处理一行像素需要分派多少个线程组
 		UINT numGroupsX = (UINT)ceilf(mWidth / 256.0f);
 		cmdList->Dispatch(numGroupsX, mHeight, 1);
 

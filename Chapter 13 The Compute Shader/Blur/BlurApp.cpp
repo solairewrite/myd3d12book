@@ -708,7 +708,7 @@ void BlurApp::BuildDescriptorHeaps()
 	//
 	// Fill out the heap with the descriptors to the BlurFilter resources.
 	//
-
+	// 创建资源的描述符来填充描述符堆
 	mBlurFilter->BuildDescriptors(
 		CD3DX12_CPU_DESCRIPTOR_HANDLE(mCbvSrvUavDescriptorHeap->GetCPUDescriptorHandleForHeapStart(), 3, mCbvSrvUavDescriptorSize),
 		CD3DX12_GPU_DESCRIPTOR_HANDLE(mCbvSrvUavDescriptorHeap->GetGPUDescriptorHandleForHeapStart(), 3, mCbvSrvUavDescriptorSize),
