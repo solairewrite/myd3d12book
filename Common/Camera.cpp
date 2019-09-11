@@ -190,7 +190,7 @@ void Camera::Strafe(float d)
 void Camera::Walk(float d)
 {
 	// mPosition += d*mLook
-	XMVECTOR s = XMVectorReplicate(d);
+	XMVECTOR s = XMVectorReplicate(d); // 复制float到向量的每个元素
 	XMVECTOR l = XMLoadFloat3(&mLook);
 	XMVECTOR p = XMLoadFloat3(&mPosition);
 	XMStoreFloat3(&mPosition, XMVectorMultiplyAdd(s, l, p));
@@ -201,10 +201,11 @@ void Camera::Walk(float d)
 void Camera::Pitch(float angle)
 {
 	// Rotate up and look vector about the right vector.
+	// 以右向量为轴旋转上向量与观察向量
 
 	XMMATRIX R = XMMatrixRotationAxis(XMLoadFloat3(&mRight), angle);
 
-	XMStoreFloat3(&mUp,   XMVector3TransformNormal(XMLoadFloat3(&mUp), R));
+	XMStoreFloat3(&mUp,   XMVector3TransformNormal(XMLoadFloat3(&mUp), R)); // 通过给定的矩阵变换向量
 	XMStoreFloat3(&mLook, XMVector3TransformNormal(XMLoadFloat3(&mLook), R));
 
 	mViewDirty = true;
@@ -213,6 +214,7 @@ void Camera::Pitch(float angle)
 void Camera::RotateY(float angle)
 {
 	// Rotate the basis vectors about the world y-axis.
+	// 绕世界空间的y轴旋转所有的基向量
 
 	XMMATRIX R = XMMatrixRotationY(angle);
 
@@ -225,6 +227,8 @@ void Camera::RotateY(float angle)
 
 void Camera::UpdateViewMatrix()
 {
+	// 先将right,up,look正交规范化,以确保彼此正交,且都为单位长度
+	// 因为0一连串的旋转操作以及累积的数值误差会使它们变为非正交规范向量
 	if(mViewDirty)
 	{
 		XMVECTOR R = XMLoadFloat3(&mRight);
@@ -233,6 +237,7 @@ void Camera::UpdateViewMatrix()
 		XMVECTOR P = XMLoadFloat3(&mPosition);
 
 		// Keep camera's axes orthogonal to each other and of unit length.
+		// 使摄像机的坐标向量彼此正交且保持单位长度
 		L = XMVector3Normalize(L);
 		U = XMVector3Normalize(XMVector3Cross(L, R));
 
@@ -240,7 +245,8 @@ void Camera::UpdateViewMatrix()
 		R = XMVector3Cross(U, L);
 
 		// Fill in the view matrix entries.
-		float x = -XMVectorGetX(XMVector3Dot(P, R));
+		// 填写观察矩阵中的元素,观察矩阵公式见P494
+		float x = -XMVectorGetX(XMVector3Dot(P, R)); // XMVector3Dot: 返回一个向量,其中每个元素都是dot值
 		float y = -XMVectorGetX(XMVector3Dot(P, U));
 		float z = -XMVectorGetX(XMVector3Dot(P, L));
 
