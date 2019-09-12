@@ -1,8 +1,3 @@
-//***************************************************************************************
-// Default.hlsl by Frank Luna (C) 2015 All Rights Reserved.
-//***************************************************************************************
-
-// Defaults for number of lights.
 #ifndef NUM_DIR_LIGHTS
     #define NUM_DIR_LIGHTS 3
 #endif
@@ -15,7 +10,6 @@
     #define NUM_SPOT_LIGHTS 0
 #endif
 
-// Include structures and functions for lighting.
 #include "LightingUtil.hlsl"
 
 struct InstanceData
@@ -40,12 +34,9 @@ struct MaterialData
 	uint     MatPad2;
 };
 
-// An array of textures, which is only supported in shader model 5.1+.  Unlike Texture2DArray, the textures
-// in this array can be different sizes and formats, making it more flexible than texture arrays.
+// 纹理数组
 Texture2D gDiffuseMap[7] : register(t0);
 
-// Put in space1, so the texture array does not overlap with these resources.  
-// The texture array will occupy registers t0, t1, ..., t6 in space0. 
 StructuredBuffer<InstanceData> gInstanceData : register(t0, space1);
 StructuredBuffer<MaterialData> gMaterialData : register(t1, space1);
 
@@ -56,7 +47,6 @@ SamplerState gsamLinearClamp      : register(s3);
 SamplerState gsamAnisotropicWrap  : register(s4);
 SamplerState gsamAnisotropicClamp : register(s5);
 
-// Constant data that varies per pass.
 cbuffer cbPass : register(b0)
 {
     float4x4 gView;
@@ -74,11 +64,7 @@ cbuffer cbPass : register(b0)
     float gTotalTime;
     float gDeltaTime;
     float4 gAmbientLight;
-
-    // Indices [0, NUM_DIR_LIGHTS) are directional lights;
-    // indices [NUM_DIR_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHTS) are point lights;
-    // indices [NUM_DIR_LIGHTS+NUM_POINT_LIGHTS, NUM_DIR_LIGHTS+NUM_POINT_LIGHT+NUM_SPOT_LIGHTS)
-    // are spot lights for a maximum of MaxLights per object.
+	
     Light gLights[MaxLights];
 };
 
@@ -95,17 +81,16 @@ struct VertexOut
     float3 PosW    : POSITION;
     float3 NormalW : NORMAL;
 	float2 TexC    : TEXCOORD;
-	
-	// nointerpolation is used so the index is not interpolated 
-	// across the triangle.
-	nointerpolation uint MatIndex  : MATINDEX;
+
+    nointerpolation uint MatIndex : MATINDEX; // nointerpolation: 该索引指向的都是未经插值的三角形
 };
 
-VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
+VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID) // SV_InstanceID: 每个实例的所有顶点编号都为instanceID
 {
 	VertexOut vout = (VertexOut)0.0f;
 	
 	// Fetch the instance data.
+	// 获取实例数据
 	InstanceData instData = gInstanceData[instanceID];
 	float4x4 world = instData.World;
 	float4x4 texTransform = instData.TexTransform;
@@ -114,6 +99,7 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
 	vout.MatIndex = matIndex;
 	
 	// Fetch the material data.
+	// 获取材质数据
 	MaterialData matData = gMaterialData[matIndex];
 	
     // Transform to world space.
@@ -136,6 +122,7 @@ VertexOut VS(VertexIn vin, uint instanceID : SV_InstanceID)
 float4 PS(VertexOut pin) : SV_Target
 {
 	// Fetch the material data.
+	// 获取材质数据
 	MaterialData matData = gMaterialData[pin.MatIndex];
 	float4 diffuseAlbedo = matData.DiffuseAlbedo;
     float3 fresnelR0 = matData.FresnelR0;
@@ -167,5 +154,3 @@ float4 PS(VertexOut pin) : SV_Target
 
     return litColor;
 }
-
-
