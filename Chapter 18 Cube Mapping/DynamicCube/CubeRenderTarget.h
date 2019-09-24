@@ -1,7 +1,5 @@
-//***************************************************************************************
-// CubeRenderTarget.h by Frank Luna (C) 2015 All Rights Reserved.
-//***************************************************************************************
-
+// 动态立方体图辅助类
+// 封装了立方体图的实际ID3D12Resource对象,与该资源所对应的各种描述符,以及用于渲染立方体图的其他有关数据
 #pragma once
 
 #include "../../Common/d3dUtil.h"
@@ -62,5 +60,3 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> mCubeMap = nullptr;
 };
-
- 

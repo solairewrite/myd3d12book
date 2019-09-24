@@ -865,11 +865,14 @@ void CubeMapApp::BuildPSOs()
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC skyPsoDesc = opaquePsoDesc;
 
 	// The camera is inside the sky sphere, so just turn off culling.
+	// 相机位于天空球内,关闭背面剔除
 	skyPsoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
 	// Make sure the depth function is LESS_EQUAL and not just LESS.  
 	// Otherwise, the normalized depth values at z = 1 (NDC) will 
 	// fail the depth test if the depth buffer was cleared to 1.
+	// 确认深度测试函数为LESS_EQUAL而非仅为LESS,否则的话,如果深度缓冲区中的数据都被清理为1,
+	// 则归一化深度值z=1(NDC,用规格化设备坐标表示)的深度项将在深度测试中失败
 	skyPsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 	skyPsoDesc.pRootSignature = mRootSignature.Get();
 	skyPsoDesc.VS =

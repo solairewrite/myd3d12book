@@ -1,7 +1,3 @@
-//***************************************************************************************
-// DynamicCubeMapApp.cpp by Frank Luna (C) 2015 All Rights Reserved.
-//***************************************************************************************
-
 #include "../../Common/d3dApp.h"
 #include "../../Common/MathHelper.h"
 #include "../../Common/UploadBuffer.h"
@@ -21,36 +17,24 @@ const int gNumFrameResources = 3;
 
 const UINT CubeMapSize = 512;
 
-// Lightweight structure stores parameters to draw a shape.  This will
-// vary from app-to-app.
 struct RenderItem
 {
 	RenderItem() = default;
     RenderItem(const RenderItem& rhs) = delete;
  
-    // World matrix of the shape that describes the object's local space
-    // relative to the world space, which defines the position, orientation,
-    // and scale of the object in the world.
     XMFLOAT4X4 World = MathHelper::Identity4x4();
 
 	XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
 
-	// Dirty flag indicating the object data has changed and we need to update the constant buffer.
-	// Because we have an object cbuffer for each FrameResource, we have to apply the
-	// update to each FrameResource.  Thus, when we modify obect data we should set 
-	// NumFramesDirty = gNumFrameResources so that each frame resource gets the update.
 	int NumFramesDirty = gNumFrameResources;
 
-	// Index into GPU constant buffer corresponding to the ObjectCB for this render item.
 	UINT ObjCBIndex = -1;
 
 	Material* Mat = nullptr;
 	MeshGeometry* Geo = nullptr;
 
-    // Primitive topology.
     D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
-    // DrawIndexedInstanced parameters.
     UINT IndexCount = 0;
     UINT StartIndexLocation = 0;
     int BaseVertexLocation = 0;
@@ -128,10 +112,8 @@ private:
 
     std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
  
-	// List of all the render items.
 	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
 
-	// Render items divided by PSO.
 	std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
 
 	UINT mSkyTexHeapIndex = 0;
@@ -222,9 +204,11 @@ bool DynamicCubeMapApp::Initialize()
     return true;
 }
  
+// 分配额外的描述符堆空间,重写函数
 void DynamicCubeMapApp::CreateRtvAndDsvDescriptorHeaps()
 {
 	// Add +6 RTV for cube render target.
+	// 为立方体渲染目标添加6个RTV(渲染目标视图)
 	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
 	rtvHeapDesc.NumDescriptors = SwapChainBufferCount + 6;
 	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
@@ -234,6 +218,7 @@ void DynamicCubeMapApp::CreateRtvAndDsvDescriptorHeaps()
 		&rtvHeapDesc, IID_PPV_ARGS(mRtvHeap.GetAddressOf())));
 
 	// Add +1 DSV for cube render target.
+	// 为立方体渲染目标新增一个DSV
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
 	dsvHeapDesc.NumDescriptors = 2;
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
@@ -244,8 +229,10 @@ void DynamicCubeMapApp::CreateRtvAndDsvDescriptorHeaps()
 
 	mCubeDSV = CD3DX12_CPU_DESCRIPTOR_HANDLE(
 		mDsvHeap->GetCPUDescriptorHandleForHeapStart(),
-		1,
+		1, // 偏移
 		mDsvDescriptorSize);
+	
+	// 除此之外,还需新增一个SRV(着色器资源视图),以便在生成立方体图之后将它绑定为着色器的输入数据
 }
 
 void DynamicCubeMapApp::OnResize()
@@ -347,6 +334,7 @@ void DynamicCubeMapApp::Draw(const GameTimer& gt)
 
 
 	// Use the dynamic cube map for the dynamic reflectors layer.
+	// 为动态反射层使用动态立方体图
 	CD3DX12_GPU_DESCRIPTOR_HANDLE dynamicTexDescriptor(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 	dynamicTexDescriptor.Offset(mSkyTexHeapIndex + 1, mCbvSrvUavDescriptorSize);
 	mCommandList->SetGraphicsRootDescriptorTable(3, dynamicTexDescriptor);
@@ -354,6 +342,7 @@ void DynamicCubeMapApp::Draw(const GameTimer& gt)
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::OpaqueDynamicReflectors]);
 
 	// Use the static "background" cube map for the other objects (including the sky)
+	// 为其他物体(包括天空)使用静态背景立方体图
 	mCommandList->SetGraphicsRootDescriptorTable(3, skyTexDescriptor);
 
 	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
@@ -681,8 +670,8 @@ void DynamicCubeMapApp::BuildDescriptorHeaps()
 	// next descriptor
 	hDescriptor.Offset(1, mCbvSrvUavDescriptorSize);
 
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
-	srvDesc.TextureCube.MostDetailedMip = 0;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE; // 维度
+	srvDesc.TextureCube.MostDetailedMip = 0; // 使用TextureCube属性
 	srvDesc.TextureCube.MipLevels = skyTex->GetDesc().MipLevels;
 	srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
 	srvDesc.Format = skyTex->GetDesc().Format;
@@ -696,6 +685,7 @@ void DynamicCubeMapApp::BuildDescriptorHeaps()
 	auto rtvCpuStart = mRtvHeap->GetCPUDescriptorHandleForHeapStart();
 
 	// Cubemap RTV goes after the swap chain descriptors.
+	// 位于交换链的描述符之后的立方体图RTV
 	int rtvOffset = SwapChainBufferCount;
 
 	CD3DX12_CPU_DESCRIPTOR_HANDLE cubeRtvHandles[6];
@@ -738,6 +728,7 @@ void DynamicCubeMapApp::BuildCubeDepthStencil()
 		IID_PPV_ARGS(mCubeDepthStencilBuffer.GetAddressOf())));
 
 	// Create descriptor to mip level 0 of entire resource using the format of the resource.
+	// 以资源自身的格式为整个资源的mip 0层级创建描述符
 	md3dDevice->CreateDepthStencilView(mCubeDepthStencilBuffer.Get(), nullptr, mCubeDSV);
 
 	// Transition the resource from its initial state to be used as a depth buffer.
@@ -1047,6 +1038,7 @@ void DynamicCubeMapApp::BuildFrameResources()
 {
     for(int i = 0; i < gNumFrameResources; ++i)
     {
+		// 每个立方体面都有一组自己的过程常量
         mFrameResources.push_back(std::make_unique<FrameResource>(md3dDevice.Get(),
             7, (UINT)mAllRitems.size(), (UINT)mMaterials.size()));
     }
@@ -1288,6 +1280,7 @@ void DynamicCubeMapApp::DrawSceneToCubeMap()
 
 		// Bind the pass constant buffer for this cube map face so we use 
 		// the right view/proj matrix for this cube face.
+		// 为当前的立方体图绑定对应的渲染过程常量缓冲区,这样就可以使用正确的视图矩阵以及投影矩阵来绘制此立方体图
 		auto passCB = mCurrFrameResource->PassCB->Resource();
 		D3D12_GPU_VIRTUAL_ADDRESS passCBAddress = passCB->GetGPUVirtualAddress() + (1+i)*passCBByteSize;
 		mCommandList->SetGraphicsRootConstantBufferView(1, passCBAddress);
@@ -1381,6 +1374,8 @@ void DynamicCubeMapApp::BuildCubeFaceCamera(float x, float y, float z)
 
 	// Use world up vector (0,1,0) for all directions except +Y/-Y.  In these cases, we
 	// are looking down +Y or -Y, so we need a different "up" vector.
+	// 除了+Y/-Y,其他方向上的上向量均用世界空间中的上向量(0,1,0)表示
+	// 在+Y/-Y方向上,分别要沿着+Y或-Y进行观察,因此需要一个与众不同的上向量
 	XMFLOAT3 ups[6] =
 	{
 		XMFLOAT3(0.0f, 1.0f, 0.0f),  // +X

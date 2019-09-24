@@ -1,7 +1,3 @@
-//***************************************************************************************
-// CubeRenderTarget.cpp by Frank Luna (C) 2011 All Rights Reserved.
-//***************************************************************************************
-
 #include "CubeRenderTarget.h"
  
 CubeRenderTarget::CubeRenderTarget(ID3D12Device* device, 
@@ -50,6 +46,7 @@ void CubeRenderTarget::BuildDescriptors(CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuSrv,
 	                                CD3DX12_CPU_DESCRIPTOR_HANDLE hCpuRtv[6])
 {
 	// Save references to the descriptors. 
+	// 保存对描述符的引用
 	mhCpuSrv = hCpuSrv;
 	mhGpuSrv = hGpuSrv;
 
@@ -85,9 +82,11 @@ void CubeRenderTarget::BuildDescriptors()
 	srvDesc.TextureCube.ResourceMinLODClamp = 0.0f;
 
 	// Create SRV to the entire cubemap resource.
+	// 为整个立方体图资源创建SRV
 	md3dDevice->CreateShaderResourceView(mCubeMap.Get(), &srvDesc, mhCpuSrv);
 
 	// Create RTV to each cube face.
+	// 为每个立方体面创建RTV
 	for(int i = 0; i < 6; ++i)
 	{
 		D3D12_RENDER_TARGET_VIEW_DESC rtvDesc; 
@@ -97,16 +96,20 @@ void CubeRenderTarget::BuildDescriptors()
 		rtvDesc.Texture2DArray.PlaneSlice = 0;
 
 		// Render target to ith element.
+		// 为第i个元素创建渲染目标视图
 		rtvDesc.Texture2DArray.FirstArraySlice = i;
 
 		// Only view one element of the array.
+		// 仅为数组中的每一个元素创建一个视图
 		rtvDesc.Texture2DArray.ArraySize = 1;
 
 		// Create RTV to ith cubemap face.
+		// 为立方体图的第i个面创建RTV
 		md3dDevice->CreateRenderTargetView(mCubeMap.Get(), &rtvDesc, mhCpuRtv[i]);
 	}
 }
 
+// 构建立方体图资源
 void CubeRenderTarget::BuildResource()
 {
 	// Note, compressed formats cannot be used for UAV.  We get error like:

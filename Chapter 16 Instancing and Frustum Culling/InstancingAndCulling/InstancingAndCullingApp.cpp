@@ -359,6 +359,14 @@ void InstancingAndCullingApp::AnimateMaterials(const GameTimer& gt)
 
 }
 
+
+
+
+
+
+
+
+// 对所有的实例进行视锥体裁剪
 void InstancingAndCullingApp::UpdateInstanceData(const GameTimer& gt)
 {
 	XMMATRIX view = mCamera.GetView();
@@ -378,14 +386,14 @@ void InstancingAndCullingApp::UpdateInstanceData(const GameTimer& gt)
 
 			XMMATRIX invWorld = XMMatrixInverse(&XMMatrixDeterminant(world), world);
 
-			// View space to the object's local space.
+			// 观察空间到物体局部空间的变换矩阵
 			XMMATRIX viewToLocal = XMMatrixMultiply(invView, invWorld);
 
-			// Transform the camera frustum from view space to the object's local space.
+			// 将摄像机视锥体由观察空间变换到物体的局部空间
 			BoundingFrustum localSpaceFrustum;
 			mCamFrustum.Transform(localSpaceFrustum, viewToLocal);
 
-			// Perform the box/frustum intersection test in local space.
+			// 在局部空间中执行包围盒与视锥体的相交测试
 			if ((localSpaceFrustum.Contains(e->Bounds) != DirectX::DISJOINT) || (mFrustumCullingEnabled == false))
 			{
 				InstanceData data;
@@ -393,15 +401,16 @@ void InstancingAndCullingApp::UpdateInstanceData(const GameTimer& gt)
 				XMStoreFloat4x4(&data.TexTransform, XMMatrixTranspose(texTransform));
 				data.MaterialIndex = instanceData[i].MaterialIndex;
 
-				// Write the instance data to structured buffer for the visible objects.
+				// 将可见对象的实例写入结构化缓冲区
 				currInstanceBuffer->CopyData(visibleInstanceCount++, data);
 			}
 		}
 
 		e->InstanceCount = visibleInstanceCount;
 
+		// 输出当前可见实例的数目与实例的总数
 		std::wostringstream outs;
-		outs.precision(6);
+		//outs.precision(6);
 		outs << L"Instancing and Culling Demo" <<
 			L"    " << e->InstanceCount <<
 			L" objects visible out of " << e->Instances.size();
@@ -701,7 +710,6 @@ void InstancingAndCullingApp::BuildSkullGeometry()
 
 		XMVECTOR P = XMLoadFloat3(&vertices[i].Pos);
 
-		// Project point onto unit sphere and generate spherical texture coordinates.
 		// 将点投射到单位球面上并生成球面纹理坐标
 		XMFLOAT3 spherePos;
 		XMStoreFloat3(&spherePos, XMVector3Normalize(P));
@@ -902,11 +910,10 @@ void InstancingAndCullingApp::BuildRenderItems()
 	skullRitem->BaseVertexLocation = skullRitem->Geo->DrawArgs["skull"].BaseVertexLocation;
 	skullRitem->Bounds = skullRitem->Geo->DrawArgs["skull"].Bounds;
 
-	// Generate instance data.
+	// 生成实例数据
 	const int n = 5;
-	mInstanceCount = n * n*n;
+	mInstanceCount = n * n * n;
 	skullRitem->Instances.resize(mInstanceCount);
-
 
 	float width = 200.0f;
 	float height = 200.0f;
@@ -918,6 +925,7 @@ void InstancingAndCullingApp::BuildRenderItems()
 	float dx = width / (n - 1);
 	float dy = height / (n - 1);
 	float dz = depth / (n - 1);
+	// 将立方体等分,在等分点上生成实例
 	for (int k = 0; k < n; ++k)
 	{
 		for (int i = 0; i < n; ++i)

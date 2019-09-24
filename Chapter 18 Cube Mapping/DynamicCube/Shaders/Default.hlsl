@@ -1,8 +1,3 @@
-//***************************************************************************************
-// Default.hlsl by Frank Luna (C) 2015 All Rights Reserved.
-//***************************************************************************************
-
-// Defaults for number of lights.
 #ifndef NUM_DIR_LIGHTS
     #define NUM_DIR_LIGHTS 3
 #endif
@@ -87,6 +82,7 @@ float4 PS(VertexOut pin) : SV_Target
     float4 litColor = ambient + directLight;
 
 	// Add in specular reflections.
+	// ≤È’“œÚ¡ø
 	float3 r = reflect(-toEyeW, pin.NormalW);
 	float4 reflectionColor = gCubeMap.Sample(gsamLinearWrap, r);
 	float3 fresnelFactor = SchlickFresnel(fresnelR0, pin.NormalW, r);
@@ -97,5 +93,3 @@ float4 PS(VertexOut pin) : SV_Target
 
     return litColor;
 }
-
-

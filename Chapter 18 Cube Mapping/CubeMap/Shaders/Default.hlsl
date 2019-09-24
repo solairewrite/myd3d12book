@@ -87,10 +87,11 @@ float4 PS(VertexOut pin) : SV_Target
     float4 litColor = ambient + directLight;
 
 	// Add in specular reflections.
+	// 加入镜面反射数据
 	float3 r = reflect(-toEyeW, pin.NormalW);
 	float4 reflectionColor = gCubeMap.Sample(gsamLinearWrap, r);
 	float3 fresnelFactor = SchlickFresnel(fresnelR0, pin.NormalW, r);
-	litColor.rgb += shininess * fresnelFactor * reflectionColor.rgb;
+    litColor.rgb += shininess * fresnelFactor * reflectionColor.rgb;
 
     // Common convention to take alpha from diffuse albedo.
     litColor.a = diffuseAlbedo.a;
