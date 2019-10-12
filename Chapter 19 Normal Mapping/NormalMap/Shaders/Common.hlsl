@@ -88,19 +88,24 @@ cbuffer cbPass : register(b1)
 //---------------------------------------------------------------------------------------
 // Transforms a normal map sample to world space.
 //---------------------------------------------------------------------------------------
+// 将一个法线图样本变换至世界空间,传入的已经是世界空间中的法线与切向量(VS中处理的)
 float3 NormalSampleToWorldSpace(float3 normalMapSample, float3 unitNormalW, float3 tangentW)
 {
 	// Uncompress each component from [0,1] to [-1,1].
+	// 法向量的压缩: 单位向量的每个元素都在[-1,1]区间内,将其变换至[0,1],再*255得到RGB值
+	// 将每个坐标分量由范围[0,1]解压至[-1,1]区间
 	float3 normalT = 2.0f*normalMapSample - 1.0f;
 
 	// Build orthonormal basis.
-	float3 N = unitNormalW;
-	float3 T = normalize(tangentW - dot(tangentW, N)*N);
-	float3 B = cross(N, T);
+	// 构建正交规范基
+	float3 N = unitNormalW; // 法线
+	float3 T = normalize(tangentW - dot(tangentW, N)*N); // 切线
+	float3 B = cross(N, T); // 副切线
 
 	float3x3 TBN = float3x3(T, B, N);
 
 	// Transform from tangent space to world space.
+	// 将法线图样本从切线空间变换到世界空间
 	float3 bumpedNormalW = mul(normalT, TBN);
 
 	return bumpedNormalW;

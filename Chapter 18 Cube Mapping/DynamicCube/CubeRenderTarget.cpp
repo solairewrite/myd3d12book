@@ -112,12 +112,6 @@ void CubeRenderTarget::BuildDescriptors()
 // 构建立方体图资源
 void CubeRenderTarget::BuildResource()
 {
-	// Note, compressed formats cannot be used for UAV.  We get error like:
-	// ERROR: ID3D11Device::CreateTexture2D: The format (0x4d, BC3_UNORM) 
-	// cannot be bound as an UnorderedAccessView, or cast to a format that
-	// could be bound as an UnorderedAccessView.  Therefore this format 
-	// does not support D3D11_BIND_UNORDERED_ACCESS.
-
 	D3D12_RESOURCE_DESC texDesc;
 	ZeroMemory(&texDesc, sizeof(D3D12_RESOURCE_DESC));
 	texDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;

@@ -23,7 +23,7 @@ struct VertexIn
 	float3 PosL    : POSITION;
     float3 NormalL : NORMAL;
 	float2 TexC    : TEXCOORD;
-	float3 TangentU : TANGENT;
+	float3 TangentU : TANGENT; // 法线贴图切向量
 };
 
 struct VertexOut
@@ -31,7 +31,7 @@ struct VertexOut
 	float4 PosH    : SV_POSITION;
     float3 PosW    : POSITION;
     float3 NormalW : NORMAL;
-	float3 TangentW : TANGENT;
+    float3 TangentW : TANGENT; // 法线贴图切向量
 	float2 TexC    : TEXCOORD;
 };
 
@@ -49,6 +49,7 @@ VertexOut VS(VertexIn vin)
     // Assumes nonuniform scaling; otherwise, need to use inverse-transpose of world matrix.
     vout.NormalW = mul(vin.NormalL, (float3x3)gWorld);
 	
+	// 切线转到世界空间
 	vout.TangentW = mul(vin.TangentU, (float3x3)gWorld);
 
     // Transform to homogeneous clip space.
@@ -74,6 +75,7 @@ float4 PS(VertexOut pin) : SV_Target
 	// Interpolating normal can unnormalize it, so renormalize it.
     pin.NormalW = normalize(pin.NormalW);
 	
+	// 法线和贴图用相同的 uv
 	float4 normalMapSample = gTextureMaps[normalMapIndex].Sample(gsamAnisotropicWrap, pin.TexC);
 	float3 bumpedNormalW = NormalSampleToWorldSpace(normalMapSample.rgb, pin.NormalW, pin.TangentW);
 
@@ -89,15 +91,18 @@ float4 PS(VertexOut pin) : SV_Target
     // Light terms.
     float4 ambient = gAmbientLight*diffuseAlbedo;
 
+	// alpha通道储存的是逐像素级别上的光泽度
     const float shininess = (1.0f - roughness) * normalMapSample.a;
     Material mat = { diffuseAlbedo, fresnelR0, shininess };
     float3 shadowFactor = 1.0f;
+	// 使用bumped(凹凸)法线
     float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
         bumpedNormalW, toEyeW, shadowFactor);
 
     float4 litColor = ambient + directLight;
 
 	// Add in specular reflections.
+	// 利用法线图中的法线计算镜面反射
 	float3 r = reflect(-toEyeW, bumpedNormalW);
 	float4 reflectionColor = gCubeMap.Sample(gsamLinearWrap, r);
 	float3 fresnelFactor = SchlickFresnel(fresnelR0, bumpedNormalW, r);

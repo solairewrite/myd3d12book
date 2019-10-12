@@ -1,7 +1,3 @@
-//***************************************************************************************
-// ShadowMap.h by Frank Luna (C) 2015 All Rights Reserved.
-//***************************************************************************************
-
 #pragma once
 
 #include "../../Common/d3dUtil.h"
@@ -53,5 +49,3 @@ private:
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> mShadowMap = nullptr;
 };
-
- 

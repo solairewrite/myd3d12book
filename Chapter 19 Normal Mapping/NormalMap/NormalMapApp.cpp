@@ -1,7 +1,3 @@
-//***************************************************************************************
-// NormalMapApp.cpp by Frank Luna (C) 2015 All Rights Reserved.
-//***************************************************************************************
-
 #include "../../Common/d3dApp.h"
 #include "../../Common/MathHelper.h"
 #include "../../Common/UploadBuffer.h"
@@ -18,36 +14,24 @@ using namespace DirectX::PackedVector;
 
 const int gNumFrameResources = 3;
 
-// Lightweight structure stores parameters to draw a shape.  This will
-// vary from app-to-app.
 struct RenderItem
 {
 	RenderItem() = default;
     RenderItem(const RenderItem& rhs) = delete;
  
-    // World matrix of the shape that describes the object's local space
-    // relative to the world space, which defines the position, orientation,
-    // and scale of the object in the world.
     XMFLOAT4X4 World = MathHelper::Identity4x4();
 
 	XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
 
-	// Dirty flag indicating the object data has changed and we need to update the constant buffer.
-	// Because we have an object cbuffer for each FrameResource, we have to apply the
-	// update to each FrameResource.  Thus, when we modify obect data we should set 
-	// NumFramesDirty = gNumFrameResources so that each frame resource gets the update.
 	int NumFramesDirty = gNumFrameResources;
 
-	// Index into GPU constant buffer corresponding to the ObjectCB for this render item.
 	UINT ObjCBIndex = -1;
 
 	Material* Mat = nullptr;
 	MeshGeometry* Geo = nullptr;
 
-    // Primitive topology.
     D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
-    // DrawIndexedInstanced parameters.
     UINT IndexCount = 0;
     UINT StartIndexLocation = 0;
     int BaseVertexLocation = 0;
@@ -118,10 +102,8 @@ private:
 
     std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
  
-	// List of all the render items.
 	std::vector<std::unique_ptr<RenderItem>> mAllRitems;
 
-	// Render items divided by PSO.
 	std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
 
 	UINT mSkyTexHeapIndex = 0;
@@ -183,7 +165,7 @@ bool NormalMapApp::Initialize()
  
 	LoadTextures();
     BuildRootSignature();
-	BuildDescriptorHeaps();
+	BuildDescriptorHeaps(); // 这次用for循环创建
     BuildShadersAndInputLayout();
     BuildShapeGeometry();
 	BuildMaterials();
@@ -219,6 +201,8 @@ void NormalMapApp::Update(const GameTimer& gt)
 
     // Has the GPU finished processing the commands of the current frame resource?
     // If not, wait until the GPU has completed commands up to this fence point.
+	// D3DApp::FlushCommandQueue() 中的围栏点比较
+	// if(mFence->GetCompletedValue() < mCurrentFence)
     if(mCurrFrameResource->Fence != 0 && mFence->GetCompletedValue() < mCurrFrameResource->Fence)
     {
         HANDLE eventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
@@ -236,13 +220,8 @@ void NormalMapApp::Update(const GameTimer& gt)
 void NormalMapApp::Draw(const GameTimer& gt)
 {
     auto cmdListAlloc = mCurrFrameResource->CmdListAlloc;
-
-    // Reuse the memory associated with command recording.
-    // We can only reset when the associated command lists have finished execution on the GPU.
     ThrowIfFailed(cmdListAlloc->Reset());
 
-    // A command list can be reset after it has been added to the command queue via ExecuteCommandList.
-    // Reusing the command list reuses memory.
     ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs["opaque"].Get()));
 
     mCommandList->RSSetViewports(1, &mScreenViewport);
@@ -259,31 +238,26 @@ void NormalMapApp::Draw(const GameTimer& gt)
     // Specify the buffers we are going to render to.
     mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 
+	// 设置描述符堆,里面映射了贴图资源
 	ID3D12DescriptorHeap* descriptorHeaps[] = { mSrvDescriptorHeap.Get() };
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 
+	// cbuffer cbPass : register(b1)
 	auto passCB = mCurrFrameResource->PassCB->Resource();
 	mCommandList->SetGraphicsRootConstantBufferView(1, passCB->GetGPUVirtualAddress());
 
-	// Bind all the materials used in this scene.  For structured buffers, we can bypass the heap and 
-	// set as a root descriptor.
+	// StructuredBuffer<MaterialData> gMaterialData : register(t0, space1);
 	auto matBuffer = mCurrFrameResource->MaterialBuffer->Resource();
 	mCommandList->SetGraphicsRootShaderResourceView(2, matBuffer->GetGPUVirtualAddress());
 
-	// Bind the sky cube map.  For our demos, we just use one "world" cube map representing the environment
-	// from far away, so all objects will use the same cube map and we only need to set it once per-frame.  
-	// If we wanted to use "local" cube maps, we would have to change them per-object, or dynamically
-	// index into an array of cube maps.
-
+	// TextureCube gCubeMap : register(t0);
 	CD3DX12_GPU_DESCRIPTOR_HANDLE skyTexDescriptor(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 	skyTexDescriptor.Offset(mSkyTexHeapIndex, mCbvSrvDescriptorSize);
 	mCommandList->SetGraphicsRootDescriptorTable(3, skyTexDescriptor);
 
-	// Bind all the textures used in this scene.  Observe
-    // that we only have to specify the first descriptor in the table.  
-    // The root signature knows how many descriptors are expected in the table.
+	// Texture2D gTextureMaps[10] : register(t1);
 	mCommandList->SetGraphicsRootDescriptorTable(4, mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 
     DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
@@ -460,13 +434,13 @@ void NormalMapApp::LoadTextures()
 {
 	std::vector<std::string> texNames = 
 	{
-		"bricksDiffuseMap",
-		"bricksNormalMap",
+		"bricksDiffuseMap", // 漫反射贴图
+		"bricksNormalMap", // 法线贴图
 		"tileDiffuseMap",
 		"tileNormalMap",
 		"defaultDiffuseMap",
 		"defaultNormalMap",
-		"skyCubeMap"
+		"skyCubeMap" // 立方体贴图
 	};
 	
 	std::vector<std::wstring> texFilenames = 
@@ -496,19 +470,23 @@ void NormalMapApp::LoadTextures()
 void NormalMapApp::BuildRootSignature()
 {
 	CD3DX12_DESCRIPTOR_RANGE texTable0;
-	texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
+	texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0); // TextureCube gCubeMap : register(t0);
 
 	CD3DX12_DESCRIPTOR_RANGE texTable1;
-	texTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 10, 1, 0);
+	texTable1.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 10, 1, 0); // Texture2D gTextureMaps[10] : register(t1);
 
     // Root parameter can be a table, root descriptor or root constants.
     CD3DX12_ROOT_PARAMETER slotRootParameter[5];
 
-	// Perfomance TIP: Order from most frequent to least frequent.
+	// cbuffer cbPerObject : register(b0)
     slotRootParameter[0].InitAsConstantBufferView(0);
+	// cbuffer cbPass : register(b1)
     slotRootParameter[1].InitAsConstantBufferView(1);
+	// StructuredBuffer<MaterialData> gMaterialData : register(t0, space1);
     slotRootParameter[2].InitAsShaderResourceView(0, 1);
+	// TextureCube gCubeMap : register(t0);
 	slotRootParameter[3].InitAsDescriptorTable(1, &texTable0, D3D12_SHADER_VISIBILITY_PIXEL);
+	// Texture2D gTextureMaps[10] : register(t1);
 	slotRootParameter[4].InitAsDescriptorTable(1, &texTable1, D3D12_SHADER_VISIBILITY_PIXEL);
 
 
@@ -540,18 +518,14 @@ void NormalMapApp::BuildRootSignature()
 
 void NormalMapApp::BuildDescriptorHeaps()
 {
-	//
-	// Create the SRV heap.
-	//
+	// 创建 SRV 堆
 	D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
 	srvHeapDesc.NumDescriptors = 10;
 	srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&mSrvDescriptorHeap)));
 
-	//
-	// Fill out the heap with actual descriptors.
-	//
+	// 用描述符填充堆
 	CD3DX12_CPU_DESCRIPTOR_HANDLE hDescriptor(mSrvDescriptorHeap->GetCPUDescriptorHandleForHeapStart());
 
 	std::vector<ComPtr<ID3D12Resource>> tex2DList = 
@@ -594,12 +568,6 @@ void NormalMapApp::BuildDescriptorHeaps()
 
 void NormalMapApp::BuildShadersAndInputLayout()
 {
-	const D3D_SHADER_MACRO alphaTestDefines[] =
-	{
-		"ALPHA_TEST", "1",
-		NULL, NULL
-	};
-
 	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "VS", "vs_5_1");
 	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "PS", "ps_5_1");
 	
@@ -747,9 +715,7 @@ void NormalMapApp::BuildPSOs()
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc;
 
-	//
-	// PSO for opaque objects.
-	//
+	// opaque PSO
     ZeroMemory(&opaquePsoDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
 	opaquePsoDesc.InputLayout = { mInputLayout.data(), (UINT)mInputLayout.size() };
 	opaquePsoDesc.pRootSignature = mRootSignature.Get();
@@ -775,9 +741,7 @@ void NormalMapApp::BuildPSOs()
 	opaquePsoDesc.DSVFormat = mDepthStencilFormat;
     ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&mPSOs["opaque"])));
 
-	//
-	// PSO for sky.
-	//
+	// sky PSO
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC skyPsoDesc = opaquePsoDesc;
 
 	// The camera is inside the sky sphere, so just turn off culling.
@@ -997,6 +961,7 @@ void NormalMapApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std
 
         D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() + ri->ObjCBIndex*objCBByteSize;
 
+		// cbuffer cbPerObject : register(b0)
 		cmdList->SetGraphicsRootConstantBufferView(0, objCBAddress);
 
         cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
