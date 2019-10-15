@@ -60,6 +60,7 @@ VertexOut VS(VertexIn vin)
 	vout.TexC = mul(texC, matData.MatTransform).xy;
 
     // Generate projective tex-coords to project shadow map onto scene.
+	// 为场景阴影图而生成的投影纹理坐标(世界空间 -> 阴影图纹理空间)
     vout.ShadowPosH = mul(posW, gShadowTransform);
 	
     return vout;
@@ -101,6 +102,7 @@ float4 PS(VertexOut pin) : SV_Target
     float4 ambient = gAmbientLight*diffuseAlbedo;
 
     // Only the first light casts a shadow.
+	// 只有第一个光源才投射物体阴影
     float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
     shadowFactor[0] = CalcShadowFactor(pin.ShadowPosH);
 
