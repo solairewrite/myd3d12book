@@ -87,4 +87,33 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\Common.hlsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Shaders\Default.hlsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Shaders\DrawNormals.hlsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Shaders\LightingUtil.hlsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Shaders\ShadowDebug.hlsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Shaders\Shadows.hlsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Shaders\Sky.hlsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Shaders\Ssao.hlsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Shaders\SsaoBlur.hlsl">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
 </Project>

@@ -1,8 +1,3 @@
-//***************************************************************************************
-// DrawNormals.hlsl by Frank Luna (C) 2015 All Rights Reserved.
-//***************************************************************************************
-
-// Defaults for number of lights.
 #ifndef NUM_DIR_LIGHTS
     #define NUM_DIR_LIGHTS 0
 #endif
@@ -78,8 +73,10 @@ float4 PS(VertexOut pin) : SV_Target
     pin.NormalW = normalize(pin.NormalW);
 	
     // NOTE: We use interpolated vertex normal for SSAO.
+	// 为SSAO使用差值顶点法线
 
     // Write normal in view space coordinates
+	// 返回法线的观察空间坐标
     float3 normalV = mul(pin.NormalW, (float3x3)gView);
     return float4(normalV, 0.0f);
 }

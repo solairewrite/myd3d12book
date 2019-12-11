@@ -168,6 +168,35 @@
     <ClInclude Include="ShadowMap.h" />
     <ClInclude Include="Ssao.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\Common.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="Shaders\Default.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="Shaders\DrawNormals.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="Shaders\LightingUtil.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="Shaders\ShadowDebug.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="Shaders\Shadows.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="Shaders\Sky.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="Shaders\Ssao.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="Shaders\SsaoBlur.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
