@@ -424,12 +424,18 @@ void Ssao::BuildRandomVectorTexture(ID3D12GraphicsCommandList* cmdList)
         D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_GENERIC_READ));
 }
  
+// 生成随机样点
 void Ssao::BuildOffsetVectors()
 {
     // Start with 14 uniformly distributed vectors.  We choose the 8 corners of the cube
 	// and the 6 center points along each cube face.  We always alternate the points on 
 	// opposites sides of the cubes.  This way we still get the vectors spread out even
 	// if we choose to use less than 14 samples.
+
+	// 采用14个均匀分布的向量实现环境光遮蔽技术
+	// 选择立方体的8个角点及6个面上的中心点
+	// 并将这些点以立方体空间位置上相对的顺序交替排列
+	// 这样一来,即使选用的采样点小于14个,任然可以得到比较分散的向量
 	
 	// 8 cube corners
 	mOffsets[0] = XMFLOAT4(+1.0f, +1.0f, +1.0f, 0.0f);

@@ -57,6 +57,7 @@ VertexOut VS(VertexIn vin)
     vout.PosH = mul(posW, gViewProj);
 
     // Generate projective tex-coords to project SSAO map onto scene.
+	// 投影纹理坐标,为了在PS中对SSAO图进行采样
     vout.SsaoPosH = mul(posW, gViewProjTex);
 	
 	// Output vertex attributes for interpolation across triangle.
@@ -102,10 +103,12 @@ float4 PS(VertexOut pin) : SV_Target
     float3 toEyeW = normalize(gEyePosW - pin.PosW);
 
     // Finish texture projection and sample SSAO map.
+	// 完成纹理投影,并对SSAO图进行采样
     pin.SsaoPosH /= pin.SsaoPosH.w;
     float ambientAccess = gSsaoMap.Sample(gsamLinearClamp, pin.SsaoPosH.xy, 0.0f).r;
 
     // Light terms.
+	// 根据采样数据,按比例缩放,光照方程中的环境光项
     float4 ambient = ambientAccess*gAmbientLight*diffuseAlbedo;
 
     // Only the first light casts a shadow.

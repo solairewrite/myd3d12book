@@ -1,14 +1,7 @@
-//=============================================================================
-// SsaoBlur.hlsl by Frank Luna (C) 2015 All Rights Reserved.
-//
-// Performs a bilateral edge preserving blur of the ambient map.  We use 
-// a pixel shader instead of compute shader to avoid the switch from 
-// compute mode to rendering mode.  The texture cache makes up for some of the
-// loss of not having shared memory.  The ambient map uses 16-bit texture
-// format, which is small, so we should be able to fit a lot of texels
-// in the cache.
-//=============================================================================
-
+// 为环境光图执行双边模糊
+// 以像素着色器代替计算着色器,来避免从计算模式向渲染模式的转换
+// 纹理缓存适当的弥补了不具共享内存的缺陷
+// 环境光采用的是16位的纹理格式,由于它占用的空间较小,所以适于在缓存中存储大量纹素
 cbuffer cbSsao : register(b0)
 {
     float4x4 gProj;
@@ -22,6 +15,7 @@ cbuffer cbSsao : register(b0)
     float2 gInvRenderTargetSize;
 
     // Coordinates given in view space.
+	// 观察空间中的坐标
     float gOcclusionRadius;
     float gOcclusionFadeStart;
     float gOcclusionFadeEnd;
@@ -35,7 +29,7 @@ cbuffer cbRootConstants : register(b1)
     bool gHorizontalBlur;
 };
 
-// Nonnumeric values cannot be added to a cbuffer.
+// 非数值数据无法添加到常量缓冲区
 Texture2D gNormalMap : register(t0);
 Texture2D gDepthMap  : register(t1);
 Texture2D gInputMap  : register(t2);
@@ -69,7 +63,7 @@ VertexOut VS(uint vid : SV_VertexID)
 
     vout.TexC = gTexCoords[vid];
 
-    // Quad covering screen in NDC space.
+	// 将显示在全屏四边形变换至NDC空间中
     vout.PosH = float4(2.0f*vout.TexC.x - 1.0f, 1.0f - 2.0f*vout.TexC.y, 0.0f, 1.0f);
 
     return vout;
@@ -85,6 +79,7 @@ float NdcDepthToViewDepth(float z_ndc)
 float4 PS(VertexOut pin) : SV_Target
 {
     // unpack into float array.
+	// 将模糊权重解包到浮点数组中
     float blurWeights[12] =
     {
         gBlurWeights[0].x, gBlurWeights[0].y, gBlurWeights[0].z, gBlurWeights[0].w,
@@ -95,6 +90,7 @@ float4 PS(VertexOut pin) : SV_Target
 	float2 texOffset;
 	if(gHorizontalBlur)
 	{
+		// ??
 		texOffset = float2(gInvRenderTargetSize.x, 0.0f);
 	}
 	else
@@ -103,6 +99,8 @@ float4 PS(VertexOut pin) : SV_Target
 	}
 
 	// The center value always contributes to the sum.
+	// 总是将中心值计入总和
+	// ??
 	float4 color      = blurWeights[gBlurRadius] * gInputMap.SampleLevel(gsamPointClamp, pin.TexC, 0.0);
 	float totalWeight = blurWeights[gBlurRadius];
 	 
@@ -113,6 +111,7 @@ float4 PS(VertexOut pin) : SV_Target
 	for(float i = -gBlurRadius; i <=gBlurRadius; ++i)
 	{
 		// We already added in the center weight.
+		// 已经计入了中心权重
 		if( i == 0 )
 			continue;
 
@@ -127,6 +126,8 @@ float4 PS(VertexOut pin) : SV_Target
 		// normal or depth), then we assume we are sampling across a discontinuity.
 		// We discard such samples from the blur.
 		//
+		// 如果中心值与邻近数值相差太大(不论法线还是深度值)
+		// 就假设正在采集的部分是不连续的,即处于物体边缘,不对这种样本进行模糊处理
 	
 		if( dot(neighborNormal, centerNormal) >= 0.8f &&
 		    abs(neighborDepth - centerDepth) <= 0.2f )
@@ -134,6 +135,7 @@ float4 PS(VertexOut pin) : SV_Target
             float weight = blurWeights[i + gBlurRadius];
 
 			// Add neighbor pixel to blur.
+			// 累加邻近像素的颜色数以进行模糊处理
 			color += weight*gInputMap.SampleLevel(
                 gsamPointClamp, tex, 0.0);
 		
@@ -142,5 +144,6 @@ float4 PS(VertexOut pin) : SV_Target
 	}
 
 	// Compensate for discarded samples by making total weights sum to 1.
+	// 使总权重之和为1,以弥补被忽略而未计入统计的样本
     return color / totalWeight;
 }
